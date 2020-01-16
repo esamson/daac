@@ -1,0 +1,101 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/openjdk:11-jdk
+
+    working_directory: ~/repo
+
+    environment:
+      JVM_OPTS: -Xmx3200m
+      TERM: dumb
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - sbt-deps-{{ checksum "build.sbt" }}-{{ checksum "project/plugins.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/bin/scalafmt" }}
+            - sbt-deps-
+
+      - run:
+          name: Scalafmt
+          command: project/bin/scalafmt --test
+
+      - run:
+          name: Header check
+          command: sbt -Dsbt.supershell=false headerCheck
+
+      - run: sbt -Dsbt.supershell=false test:compile
+
+      - save_cache:
+          paths:
+            - ~/.cache/coursier
+            - ~/.ivy2/cache
+            - ~/.sbt/boot
+          key: sbt-deps-{{ checksum "build.sbt" }}-{{ checksum "project/plugins.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/bin/scalafmt" }}
+
+  publish:
+    docker:
+      - image: circleci/openjdk:11-jdk
+
+    environment:
+      TERM: dumb
+
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - sbt-deps-{{ checksum "build.sbt" }}-{{ checksum "project/plugins.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/bin/scalafmt" }}
+            - sbt-deps-
+      - run:
+          name: Publish
+          command: |
+            mkdir -p $HOME/.sbt/gpg
+            echo $SECRING_ASC | base64 --decode > $HOME/.sbt/gpg/secring.asc
+            gpg --import $HOME/.sbt/gpg/secring.asc
+            sbt -Dsbt.supershell=false publishSigned
+
+  release:
+    docker:
+      - image: circleci/openjdk:11-jdk
+
+    environment:
+      TERM: dumb
+
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - sbt-deps-{{ checksum "project/Dependencies.scala" }}-{{ checksum "project/plugins.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/bin/scalafmt" }}
+            - sbt-deps-
+      - run:
+          name: Release
+          command: sbt -Dsbt.supershell=false sonatypeRelease
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: /.*/
+            tags:
+              only: /.*/
+      - publish:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /.*/
+      - release:
+          requires:
+            - publish
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
