@@ -115,28 +115,6 @@ object Main {
           download(request, progressAccumulator)
         }
 
-        def prettyPrint(nanos: Long) = nanos match {
-          case ns if NANOSECONDS.toMicros(ns) <= 1 =>
-            s"$ns nanosecond${if (ns == 1) "" else "s"}"
-          case us if NANOSECONDS.toMillis(us) <= 1 =>
-            s"${NANOSECONDS.toMicros(us)} microseconds"
-          case ms if NANOSECONDS.toSeconds(ms) <= 1 =>
-            s"${NANOSECONDS.toMillis(ms)} milliseconds"
-          case s if NANOSECONDS.toMinutes(s) <= 1 =>
-            s"${NANOSECONDS.toSeconds(s)} seconds"
-          case m if NANOSECONDS.toHours(m) <= 1 =>
-            val minutes = NANOSECONDS.toMinutes(m)
-            val seconds = NANOSECONDS.toSeconds(m) % 60
-            s"$minutes minutes and $seconds second${if (seconds == 1) ""
-            else "s"}"
-          case h =>
-            val hours = NANOSECONDS.toHours(h)
-            val minutes = NANOSECONDS.toMinutes(h) % 60
-            val seconds = NANOSECONDS.toSeconds(h) % (60 * 60)
-            s"$hours hours, $minutes minutes, and $seconds second${if (seconds == 1) ""
-            else "s"}"
-        }
-
         val progressReporter = new Thread(() => {
           var lastReportBytes = 0L
           var lastReportTime = startTime
@@ -240,6 +218,30 @@ object Main {
         println(s"Cannot download $url -- better try with your browser.")
         if (Desktop.isDesktopSupported) Desktop.getDesktop.browse(new URI(url))
     }
+  }
+
+  def prettyPrint(nanos: Long) = nanos match {
+    case ns if NANOSECONDS.toMicros(ns) <= 1 =>
+      s"$ns nanosecond${if (ns == 1) "" else "s"}"
+    case us if NANOSECONDS.toMillis(us) <= 1 =>
+      s"${NANOSECONDS.toMicros(us)} microseconds"
+    case ms if NANOSECONDS.toSeconds(ms) <= 1 =>
+      s"${NANOSECONDS.toMillis(ms)} milliseconds"
+    case s if NANOSECONDS.toMinutes(s) <= 1 =>
+      s"${NANOSECONDS.toSeconds(s)} seconds"
+    case m if NANOSECONDS.toHours(m) <= 1 =>
+      val minutes = NANOSECONDS.toMinutes(m)
+      val seconds = NANOSECONDS.toSeconds(m - MINUTES.toNanos(minutes))
+      s"$minutes minutes and $seconds second${if (seconds == 1) ""
+      else "s"}"
+    case h =>
+      val hours = NANOSECONDS.toHours(h)
+      val minutes = NANOSECONDS.toMinutes(h - HOURS.toNanos(hours))
+      val seconds = NANOSECONDS.toSeconds(
+        h - HOURS.toNanos(hours) - MINUTES.toNanos(minutes)
+      )
+      s"$hours hours, $minutes minutes, and $seconds second${if (seconds == 1) ""
+      else "s"}"
   }
 
   @scala.annotation.tailrec

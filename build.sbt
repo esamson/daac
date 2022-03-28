@@ -44,5 +44,6 @@ ThisBuild / dynverSonatypeSnapshots := true
 name := "daac"
 
 libraryDependencies ++= Seq(
-  "org.scalaj" %% "scalaj-http" % "2.4.2"
+  "org.scalaj" %% "scalaj-http" % "2.4.2",
+  "org.scalatest" %% "scalatest" % "3.2.11" % Test
 )
